@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>FINSA Editor</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<style>
+			body {
+				background-color: #f0f0f0;
+				color: #444;
+			}
+			a {
+				color: #08f;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="container"></div>
+		<div id="info">
+			<a href="https://threejs.org" target="_blank" rel="noopener">Web 3D</a> - Finsa Editor
+		</div>
+
+		<script type="module">
+
+			import * as THREE from '../build/three.module.js';
+			import { GUI } from './jsm/libs/dat.gui.module.js';
+			import { OrbitControls } from './jsm/controls/OrbitControls.js';
+			import { TransformControls } from './jsm/controls/TransformControls.js';
+			//import { CSG } from "../THREE-CSGMesh-master/three-csg.js";
+
+			var exteriorShape = new THREE.Shape();
+			var hole = new THREE.Path();
+			var meshExtrusion;
+			var strShape = "Rectangular";
+			var strMaterial = "Material 1";
+			let container;
+			let camera, scene, renderer;
+			const point = new THREE.Vector3();
+
+			const raycaster = new THREE.Raycaster();
+			const pointer = new THREE.Vector2();
+			const onUpPosition = new THREE.Vector2();
+			const onDownPosition = new THREE.Vector2();
+
+			const geometry = new THREE.BoxGeometry( 20, 20, 20 );
+			let transformControl;
+
+			const ARC_SEGMENTS = 200;
+
+			const params = {
+				x: 0,
+				y: 0,
+				ancho: 1000,
+				fondo: 600,
+				grosor: 10,
+				L1 : 250,
+				L2 : 300,
+				uniform: true,
+				tension: 0.5,
+				centripetal: true,
+				chordal: true,
+				addExteriorPoint: addExteriorPoint,
+				removePoint: removePoint,
+				removeLastPoint: removePoint,
+				clearExteriorPoints : clearExteriorPoints,
+				listMaterial: "Material 1",//dummy, type is the key
+				listShape: "Rectangular"//dummy, type is the key
+			};
+
+			init();
+
+			function init() {
+
+				container = document.getElementById( 'container' );
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0xf0f0f0 );
+
+				camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 10000 );
+				camera.position.set( 0, 1500, 500 );
+				scene.add( camera );
+
+				//scene.add( new THREE.AmbientLight( 0xf0f0f0 ) );
+				scene.add(new THREE.HemisphereLight(0xddeeff, 0x202020, 3));
+				
+				const light = new THREE.DirectionalLight(0xffffff, 3.0)
+				light.position.set( 100, 250, 200 );
+				light.angle = Math.PI * 0.2;
+				light.castShadow = true;
+				light.shadow.camera.near = 200;
+				light.shadow.camera.far = 2000;
+				light.shadow.bias = - 0.000222;
+				light.shadow.mapSize.width = 1024;
+				light.shadow.mapSize.height = 1024;
+				scene.add( light );
+
+				const planeGeometry = new THREE.PlaneGeometry( 4000, 2000 );
+				planeGeometry.rotateX( - Math.PI / 2 );
+				const planeMaterial = new THREE.ShadowMaterial( { opacity: 0.2 } );
+
+				const plane = new THREE.Mesh( planeGeometry, planeMaterial );
+				plane.position.y = -10;
+				plane.receiveShadow = true;
+				scene.add( plane );
+
+				const helper = new THREE.GridHelper( 2000, 100 );
+				helper.position.y = 0;
+				helper.material.opacity = 0.25;
+				helper.material.transparent = true;
+				scene.add( helper );
+				
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.shadowMap.enabled = true;
+				container.appendChild( renderer.domElement );
+
+				const gui = new GUI();
+				gui.width = 400;
+
+				const MaterialFolder = gui.addFolder('1.Material');
+				MaterialFolder.add( params, 'grosor',0.1,200 ).step( 0.1 ).name('Grosor').onChange(function(value){
+					AddStandarShape(strShape);
+				});
+				var stringList = ["Material 1", "Material 2", "Material 3"];
+				var matlist = MaterialFolder.add( params, 'listMaterial', stringList ).name('Material List');
+				matlist.onChange(function(value){
+					strMaterial = value;
+					AddStandarShape(strShape);
+				});
+				MaterialFolder.closed = false;
+
+				const ExteriorShapeFolder = gui.addFolder('2.Forma exterior');
+				ExteriorShapeFolder.closed = false;
+				
+				const customShape = ExteriorShapeFolder.addFolder('2.1.Formatos estándar');
+				customShape.add( params, 'ancho',100,2000 ).step(1).name('Ancho').onChange(function(value){					
+					AddStandarShape(strShape);
+				});
+				customShape.add( params, 'fondo',100,2000 ).step( 1 ).name('Fondo').onChange(function(value){
+					AddStandarShape(strShape);
+				});
+				customShape.add( params, 'L1',0,2000 ).step( 1 ).name('L1').onChange(function(value){
+					AddStandarShape(strShape);
+				});
+				customShape.add( params, 'L2',0,2000 ).step( 1 ).name('L2').onChange(function(value){
+					AddStandarShape(strShape);
+				});
+				var stringList = ["Rectangular", "En L", "Con chaflan"];
+				var shapelist = customShape.add( params, 'listShape', stringList ).name('Formas');				
+				shapelist.onChange(function(value){			
+					AddStandarShape(value);
+				});				
+				customShape.closed = false;
+				/*
+				const parametricShape = ExteriorShapeFolder.addFolder('2.2.Parametrica');
+				parametricShape.add( params, 'x' );
+				parametricShape.add( params, 'y' );
+				parametricShape.add( params, 'addExteriorPoint' );
+				parametricShape.add( params, 'removeLastPoint' );
+				parametricShape.add( params, 'clearExteriorPoints' );
+				*/
+				gui.closed = false;
+				// Controls
+				const controls = new OrbitControls( camera, renderer.domElement );
+				controls.damping = 0.2;
+				controls.addEventListener( 'change', render );
+
+				transformControl = new TransformControls( camera, renderer.domElement );
+				transformControl.addEventListener( 'change', render );
+				transformControl.addEventListener( 'dragging-changed', function ( event ) {
+					controls.enabled = ! event.value;
+				} );
+				scene.add( transformControl );
+
+				transformControl.addEventListener( 'objectChange', function () {					
+				} );
+				document.addEventListener( 'pointerdown', onPointerDown );
+				document.addEventListener( 'pointerup', onPointerUp );
+				document.addEventListener( 'pointermove', onPointerMove );
+				window.addEventListener( 'resize', onWindowResize );
+
+				AddStandarShape(strShape);
+				render();
+			}
+			function RemoveMesh(){
+				if ( meshExtrusion !== undefined ) {
+				exteriorShape.holes = [];
+				exteriorShape.curves = [];
+				scene.remove( meshExtrusion );
+				meshExtrusion.geometry.dispose();
+				}
+			}
+			function GetMaterialFromListBox(){
+				switch(strMaterial) {
+					case "Material 1":
+						return new THREE.MeshPhongMaterial({ color: 0x321e05 }); 
+						break;
+					case "Material 2":
+						return new THREE.MeshPhongMaterial({ color: 0x2b2507 });
+						break;
+					default:
+					return new THREE.MeshPhongMaterial({ color: 0x382d23 });				
+				}
+			}
+			function CreateExtrusionMesh(){
+				var mExtrudeSettings = {
+					steps: 1,
+					depth: params.grosor,
+					bevelEnabled: true,
+					bevelThickness: 1,
+					bevelSize: 1,
+					bevelOffset: 0,
+					bevelSegments: 1
+				};				
+
+				var geom = new THREE.ExtrudeGeometry(exteriorShape, mExtrudeSettings);
+
+				var objmaterial = GetMaterialFromListBox();
+				meshExtrusion = new THREE.Mesh(geom, objmaterial);				
+				meshExtrusion.castShadow = true;
+				meshExtrusion.receiveShadow = true;
+				meshExtrusion.rotateX( - Math.PI / 2 );
+				meshExtrusion.position.x = -params.ancho / 2;
+				meshExtrusion.position.z = params.fondo / 2;
+				scene.add(meshExtrusion);
+			}
+			function AddStandarShape(value){
+				strShape = value;
+				if((params.ancho - params.L1) < -0.1) return;
+				if((params.fondo - params.L2) < -2) return;
+				RemoveMesh();
+				switch(value) {
+					case "En L":
+						AddEnL();
+						break;
+					case "Con chaflan":
+						AddChaflan();
+						break;
+					default:
+						AddRectangular();				
+				}
+				CreateExtrusionMesh();
+				render();
+			}
+
+			function AddEnL(){
+				exteriorShape.moveTo(0, 0);
+				exteriorShape.lineTo( params.ancho - params.L1, 0);				
+				exteriorShape.lineTo( params.ancho - params.L1, params.fondo - params.L2);				
+				exteriorShape.lineTo( params.ancho, params.fondo - params.L2);				
+				exteriorShape.lineTo( params.ancho,  params.fondo);				
+				exteriorShape.lineTo(0,  params.fondo);								
+				exteriorShape.lineTo(0,  0);
+				AddHoles(6,50,50,10,70);
+			}
+			function AddChaflan(){
+				exteriorShape.moveTo(0, 0);
+				exteriorShape.lineTo( params.ancho - params.L1, 0);				
+				exteriorShape.lineTo( params.ancho, params.fondo - params.L2);				
+				exteriorShape.lineTo( params.ancho,  params.fondo);								
+				exteriorShape.lineTo(0,  params.fondo);												
+				exteriorShape.lineTo(0,  0);
+				AddHoles(7,70,60,15,80);
+			}
+			function AddRectangular(){				
+				exteriorShape.moveTo(0, 0);
+				exteriorShape.lineTo( params.ancho, 0);								
+				exteriorShape.lineTo( params.ancho,  params.fondo);								
+				exteriorShape.lineTo(0,  params.fondo);
+				exteriorShape.lineTo(0,  0);
+				AddHoles(7,50,70,7,50);
+			}
+			function AddHoles(numholes, xinit, yinit, radius, distancebetween){
+				let vardist = 0;
+				for(let i=0;i<numholes; i++)
+				{
+					const hole = new THREE.Path();
+					hole.moveTo(xinit, yinit)
+					hole.absarc(xinit-radius, yinit+vardist, radius, 0, Math.PI * 2, true);
+					exteriorShape.holes.push(hole);
+					vardist += distancebetween;
+				}
+			}
+			
+			function addExteriorPoint() {
+				if(exteriorShape.curves.length === 0){
+					exteriorShape.moveTo( params.x, params.y );
+					exteriorShape.lineTo( params.x, params.y );
+				}
+				else{
+					exteriorShape.lineTo( params.x, params.y );
+				}
+				if(exteriorShape.curves.length > 2){	
+					if ( meshExtrusion !== undefined ) {
+						scene.remove( meshExtrusion );
+						meshExtrusion.geometry.dispose();
+					}			
+					CreateExtrusionMesh();
+				}
+				render();
+			}
+			function clearExteriorPoints(){
+				RemoveMesh();
+				render();
+			}
+			function addPoint() {
+				render();
+			}
+			function removePoint() {
+				render();
+			}
+			function load( new_positions ) {
+
+			}
+			function render() {
+				renderer.render( scene, camera );
+			}
+
+			function onPointerDown( event ) {
+
+				onDownPosition.x = event.clientX;
+				onDownPosition.y = event.clientY;
+
+			}
+
+			function onPointerUp() {
+
+				onUpPosition.x = event.clientX;
+				onUpPosition.y = event.clientY;
+
+				if ( onDownPosition.distanceTo( onUpPosition ) === 0 ) transformControl.detach();
+
+			}
+
+			function onPointerMove( event ) {
+
+				pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				render();
+
+			}
+
+		</script>
+
+	</body>
+</html>
