@@ -88,7 +88,7 @@
 				light.position.set( 100, 250, 200 );
 				light.angle = Math.PI * 0.2;
 				light.castShadow = true;
-				light.shadow.camera.near = 200;
+				light.shadow.camera.near = 20;
 				light.shadow.camera.far = 2000;
 				light.shadow.bias = - 0.000222;
 				light.shadow.mapSize.width = 1024;
@@ -100,11 +100,11 @@
 				const planeMaterial = new THREE.ShadowMaterial( { opacity: 0.2 } );
 
 				const plane = new THREE.Mesh( planeGeometry, planeMaterial );
-				plane.position.y = -10;
+				plane.position.y = -1;
 				plane.receiveShadow = true;
 				scene.add( plane );
 
-				const helper = new THREE.GridHelper( 2000, 100 );
+				const helper = new THREE.GridHelper( 2000, 200 );
 				helper.position.y = 0;
 				helper.material.opacity = 0.25;
 				helper.material.transparent = true;
@@ -228,8 +228,6 @@
 			}
 			function AddStandarShape(value){
 				strShape = value;
-				if((params.ancho - params.L1) < -0.1) return;
-				if((params.fondo - params.L2) < -2) return;
 				RemoveMesh();
 				switch(value) {
 					case "En L":
@@ -246,6 +244,9 @@
 			}
 
 			function AddEnL(){
+				if((params.ancho - params.L1) < -0.1) return;
+				if((params.fondo - params.L2) < -2) return;
+
 				exteriorShape.moveTo(0, 0);
 				exteriorShape.lineTo( params.ancho - params.L1, 0);				
 				exteriorShape.lineTo( params.ancho - params.L1, params.fondo - params.L2);				
@@ -256,13 +257,16 @@
 				AddHoles(6,50,50,10,70);
 			}
 			function AddChaflan(){
+				if((params.ancho - params.L1) < -0.1) return;
+				if((params.fondo - params.L2) < -2) return;
+
 				exteriorShape.moveTo(0, 0);
 				exteriorShape.lineTo( params.ancho - params.L1, 0);				
 				exteriorShape.lineTo( params.ancho, params.fondo - params.L2);				
 				exteriorShape.lineTo( params.ancho,  params.fondo);								
 				exteriorShape.lineTo(0,  params.fondo);												
 				exteriorShape.lineTo(0,  0);
-				AddHoles(7,70,60,15,80);
+				AddHoles(4,70,60,15,150);
 			}
 			function AddRectangular(){				
 				exteriorShape.moveTo(0, 0);
