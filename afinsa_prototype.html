@@ -19,7 +19,7 @@
 
 		<div id="container"></div>
 		<div id="info">
-			<a href="https://threejs.org" target="_blank" rel="noopener">Web 3D</a> - Finsa Editor
+			<a href="https://threejs.org" target="_blank" rel="noopener">FINSA</a> - 3D Editor
 		</div>
 
 		<script type="module">
@@ -29,7 +29,6 @@
 			import { OrbitControls } from './jsm/controls/OrbitControls.js';
 			import { TransformControls } from './jsm/controls/TransformControls.js';
 			import CSG from "../build//three-csg.js";
-			//import { CSG } from "../build//csg-lib.js";
 
 			var exteriorShape = new THREE.Shape();
 			var hole = new THREE.Path();
@@ -73,16 +72,24 @@
 			let subMaterial = mkMat('red');
 			init();			
 			
+			function init() {
+				InitializeScene();
+				InitializeGUI();
+				AddStandarShape(strShape);				
+				render();
+			}			
 			function createCSGModel() {				
 				let box = new THREE.Mesh(new THREE.BoxGeometry(2100,120,30),mkMat('grey'));				
-				box.position.y = 100;
-				box.position.z = -250;
+				box.position.y = 90;
+				//box.position.z = -250;
+				box.position.z = -params.fondo/2 +30;
 				box.updateMatrix();
 				//scene.add(box);
 				//let sphere = new THREE.Mesh(new THREE.SphereGeometry(120,80,80),mkMat('grey'));
 				//sphere.position.y = 200;
 				//scene.add(sphere);
 				CSGResult = doCSG(meshExtrusion,box,'subtract',GetMaterialFromListBox());				
+				//CSGResult = doCSG(meshExtrusion,box,'union',GetMaterialFromListBox());				
 				scene.remove(meshExtrusion);
 				scene.add(CSGResult);
 				render();
@@ -95,12 +102,6 @@
 				result.material = mat;
 				result.castShadow  = result.receiveShadow = true;
 				return result;
-			}
-			function init() {
-				InitializeScene();
-				InitializeGUI();
-				AddStandarShape(strShape);				
-				render();
 			}
 			function InitializeScene(){
 				container = document.getElementById( 'container' );
@@ -127,11 +128,11 @@
 				const planeMaterial = new THREE.ShadowMaterial( { opacity: 0.2 } );
 
 				const plane = new THREE.Mesh( planeGeometry, planeMaterial );
-				plane.position.y = -1;
+				plane.position.y = -5;
 				plane.receiveShadow = true;
 				scene.add( plane );
 
-				const helper = new THREE.GridHelper( 2000, 200 );
+				const helper = new THREE.GridHelper( 2000, 100 );
 				helper.position.y = 0;
 				helper.material.opacity = 0.25;
 				helper.material.transparent = true;
