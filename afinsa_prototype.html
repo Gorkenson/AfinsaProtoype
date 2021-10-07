@@ -64,20 +64,17 @@
 				centripetal: true,
 				chordal: true,
 				addExteriorPoint: addExteriorPoint,
-				removePoint: removePoint,
-				removeLastPoint: removePoint,
 				clearExteriorPoints : clearExteriorPoints,
 				listMaterial: "Material 3",//dummy, type is the key
-				listShape: "Rectangular"//dummy, type is the key
+				listShape: "En L"//dummy, type is the key
 			};
 
 			var mkMat=(color) => new THREE.MeshStandardMaterial({color:color,roughness:1,metalness:0.8});
 			let subMaterial = mkMat('red');
-			init();
-			createCSGModel();
+			init();			
 			
 			function createCSGModel() {				
-				let box = new THREE.Mesh(new THREE.BoxGeometry(2000,70,30),mkMat('grey'));				
+				let box = new THREE.Mesh(new THREE.BoxGeometry(2100,120,30),mkMat('grey'));				
 				box.position.y = 100;
 				box.position.z = -250;
 				box.updateMatrix();
@@ -85,8 +82,7 @@
 				//let sphere = new THREE.Mesh(new THREE.SphereGeometry(120,80,80),mkMat('grey'));
 				//sphere.position.y = 200;
 				//scene.add(sphere);
-				CSGResult = doCSG(meshExtrusion,box,'subtract',GetMaterialFromListBox());
-				//meshExtrusion.visible = false;
+				CSGResult = doCSG(meshExtrusion,box,'subtract',GetMaterialFromListBox());				
 				scene.remove(meshExtrusion);
 				scene.add(CSGResult);
 				render();
@@ -100,20 +96,21 @@
 				result.castShadow  = result.receiveShadow = true;
 				return result;
 			}
-
 			function init() {
+				InitializeScene();
+				InitializeGUI();
+				AddStandarShape(strShape);				
+				render();
+			}
+			function InitializeScene(){
 				container = document.getElementById( 'container' );
-
 				scene = new THREE.Scene();
 				scene.background = new THREE.Color( 0xf0f0f0 );
-
 				camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 10000 );
 				camera.position.set( 0, 1500, 500 );
 				scene.add( camera );
-
-				//scene.add( new THREE.AmbientLight( 0xf0f0f0 ) );
 				scene.add(new THREE.HemisphereLight(0xddeeff, 0x202020, 3));
-				
+			
 				const light = new THREE.DirectionalLight(0xffffff, 3.0)
 				light.position.set( 100, 250, 200 );
 				light.angle = Math.PI * 0.2;
@@ -145,7 +142,27 @@
 				renderer.setSize( window.innerWidth, window.innerHeight );
 				renderer.shadowMap.enabled = true;
 				container.appendChild( renderer.domElement );
+								// Controls
+								const controls = new OrbitControls( camera, renderer.domElement );
+				controls.damping = 0.2;
+				controls.addEventListener( 'change', render );
 
+				transformControl = new TransformControls( camera, renderer.domElement );
+				transformControl.addEventListener( 'change', render );
+				transformControl.addEventListener( 'dragging-changed', function ( event ) {
+					controls.enabled = ! event.value;
+				} );
+				scene.add( transformControl );
+
+				transformControl.addEventListener( 'objectChange', function () {					
+				} );
+				document.addEventListener( 'pointerdown', onPointerDown );
+				document.addEventListener( 'pointerup', onPointerUp );
+				document.addEventListener( 'pointermove', onPointerMove );
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+			function InitializeGUI(){
 				const gui = new GUI();
 				gui.width = 400;
 
@@ -192,27 +209,7 @@
 				parametricShape.add( params, 'clearExteriorPoints' );
 				*/
 				gui.closed = false;
-				// Controls
-				const controls = new OrbitControls( camera, renderer.domElement );
-				controls.damping = 0.2;
-				controls.addEventListener( 'change', render );
 
-				transformControl = new TransformControls( camera, renderer.domElement );
-				transformControl.addEventListener( 'change', render );
-				transformControl.addEventListener( 'dragging-changed', function ( event ) {
-					controls.enabled = ! event.value;
-				} );
-				scene.add( transformControl );
-
-				transformControl.addEventListener( 'objectChange', function () {					
-				} );
-				document.addEventListener( 'pointerdown', onPointerDown );
-				document.addEventListener( 'pointerup', onPointerUp );
-				document.addEventListener( 'pointermove', onPointerMove );
-				window.addEventListener( 'resize', onWindowResize );
-
-				AddStandarShape(strShape);
-				render();
 			}
 			function RemoveMesh(){
 				if ( meshExtrusion !== undefined ) {
@@ -257,7 +254,6 @@
 				meshExtrusion.updateMatrix();
 				scene.add(meshExtrusion);
 				scene.remove(CSGResult);
-				//createCSGModel();
 			}
 			function AddStandarShape(value){
 				strShape = value;
@@ -273,6 +269,7 @@
 						AddRectangular();				
 				}
 				CreateExtrusionMesh();
+				createCSGModel();
 				render();
 			}
 			function AddEnL(){
@@ -292,13 +289,13 @@
 				if((params.ancho - params.L1) < -0.1) return;
 				if((params.fondo - params.L2) < -2) return;
 
-				exteriorShape.moveTo(0, 0);
+				exteriorShape.moveTo(0, 0);				
 				exteriorShape.lineTo( params.ancho - params.L1, 0);				
-				exteriorShape.lineTo( params.ancho, params.fondo - params.L2);				
-				exteriorShape.lineTo( params.ancho,  params.fondo);								
-				exteriorShape.lineTo(0,  params.fondo);												
-				exteriorShape.lineTo(0,  0);
-				AddHoles(4,70,60,15,150);
+				exteriorShape.lineTo( params.ancho,params.fondo - params.L2);				
+				exteriorShape.lineTo( params.ancho,params.fondo);
+				exteriorShape.lineTo( 0,params.fondo);												
+				exteriorShape.lineTo( 0,  0);
+				AddHoles(5,60,70,16,100);
 			}
 			function AddRectangular(){				
 				exteriorShape.moveTo(0, 0);
@@ -339,15 +336,6 @@
 			function clearExteriorPoints(){
 				RemoveMesh();
 				render();
-			}
-			function addPoint() {
-				render();
-			}
-			function removePoint() {
-				render();
-			}
-			function load( new_positions ) {
-
 			}
 			function render() {
 				renderer.render( scene, camera );
