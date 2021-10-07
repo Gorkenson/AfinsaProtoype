@@ -28,33 +28,35 @@
 			import { GUI } from './jsm/libs/dat.gui.module.js';
 			import { OrbitControls } from './jsm/controls/OrbitControls.js';
 			import { TransformControls } from './jsm/controls/TransformControls.js';
-			//import { CSG } from "../THREE-CSGMesh-master/three-csg.js";
+			import CSG from "../build//three-csg.js";
+			//import { CSG } from "../build//csg-lib.js";
 
 			var exteriorShape = new THREE.Shape();
 			var hole = new THREE.Path();
 			var meshExtrusion;
-			var strShape = "Rectangular";
-			var strMaterial = "Material 1";
+			var extrusionGeometry;
+			var CSGResult;
+			var strShape = "En L";
+			var strMaterial = "Material 3";
 			let container;
+			var material1 = new THREE.MeshPhongMaterial({ color: 0x321e05 }); 
+			var material2 = new THREE.MeshPhongMaterial({ color: 0x2b2507 });
+			var material3 = new THREE.MeshPhongMaterial({ color: 0x382d23 }); 
 			let camera, scene, renderer;
 			const point = new THREE.Vector3();
-
 			const raycaster = new THREE.Raycaster();
 			const pointer = new THREE.Vector2();
 			const onUpPosition = new THREE.Vector2();
 			const onDownPosition = new THREE.Vector2();
-
 			const geometry = new THREE.BoxGeometry( 20, 20, 20 );
 			let transformControl;
-
 			const ARC_SEGMENTS = 200;
-
 			const params = {
 				x: 0,
 				y: 0,
 				ancho: 1000,
 				fondo: 600,
-				grosor: 10,
+				grosor: 100,
 				L1 : 250,
 				L2 : 300,
 				uniform: true,
@@ -65,11 +67,39 @@
 				removePoint: removePoint,
 				removeLastPoint: removePoint,
 				clearExteriorPoints : clearExteriorPoints,
-				listMaterial: "Material 1",//dummy, type is the key
+				listMaterial: "Material 3",//dummy, type is the key
 				listShape: "Rectangular"//dummy, type is the key
 			};
 
+			var mkMat=(color) => new THREE.MeshStandardMaterial({color:color,roughness:1,metalness:0.8});
+			let subMaterial = mkMat('red');
 			init();
+			createCSGModel();
+			
+			function createCSGModel() {				
+				let box = new THREE.Mesh(new THREE.BoxGeometry(2000,70,30),mkMat('grey'));				
+				box.position.y = 100;
+				box.position.z = -250;
+				box.updateMatrix();
+				//scene.add(box);
+				//let sphere = new THREE.Mesh(new THREE.SphereGeometry(120,80,80),mkMat('grey'));
+				//sphere.position.y = 200;
+				//scene.add(sphere);
+				CSGResult = doCSG(meshExtrusion,box,'subtract',GetMaterialFromListBox());
+				//meshExtrusion.visible = false;
+				scene.remove(meshExtrusion);
+				scene.add(CSGResult);
+				render();
+			}
+			function doCSG(a,b,op,mat){
+				let bspA = CSG.fromMesh( a );
+				let bspB = CSG.fromMesh( b );
+				let bspC = bspA[op]( bspB );
+				let result = CSG.toMesh( bspC, a.matrix );
+				result.material = mat;
+				result.castShadow  = result.receiveShadow = true;
+				return result;
+			}
 
 			function init() {
 				container = document.getElementById( 'container' );
@@ -195,13 +225,13 @@
 			function GetMaterialFromListBox(){
 				switch(strMaterial) {
 					case "Material 1":
-						return new THREE.MeshPhongMaterial({ color: 0x321e05 }); 
+						return material1; 
 						break;
 					case "Material 2":
-						return new THREE.MeshPhongMaterial({ color: 0x2b2507 });
+						return material2;
 						break;
 					default:
-					return new THREE.MeshPhongMaterial({ color: 0x382d23 });				
+					return material3;
 				}
 			}
 			function CreateExtrusionMesh(){
@@ -215,16 +245,19 @@
 					bevelSegments: 1
 				};				
 
-				var geom = new THREE.ExtrudeGeometry(exteriorShape, mExtrudeSettings);
+				extrusionGeometry = new THREE.ExtrudeGeometry(exteriorShape, mExtrudeSettings);
 
 				var objmaterial = GetMaterialFromListBox();
-				meshExtrusion = new THREE.Mesh(geom, objmaterial);				
+				meshExtrusion = new THREE.Mesh(extrusionGeometry, objmaterial);				
 				meshExtrusion.castShadow = true;
 				meshExtrusion.receiveShadow = true;
 				meshExtrusion.rotateX( - Math.PI / 2 );
 				meshExtrusion.position.x = -params.ancho / 2;
 				meshExtrusion.position.z = params.fondo / 2;
+				meshExtrusion.updateMatrix();
 				scene.add(meshExtrusion);
+				scene.remove(CSGResult);
+				//createCSGModel();
 			}
 			function AddStandarShape(value){
 				strShape = value;
@@ -242,7 +275,6 @@
 				CreateExtrusionMesh();
 				render();
 			}
-
 			function AddEnL(){
 				if((params.ancho - params.L1) < -0.1) return;
 				if((params.fondo - params.L2) < -2) return;
@@ -286,8 +318,7 @@
 					exteriorShape.holes.push(hole);
 					vardist += distancebetween;
 				}
-			}
-			
+			}			
 			function addExteriorPoint() {
 				if(exteriorShape.curves.length === 0){
 					exteriorShape.moveTo( params.x, params.y );
@@ -321,14 +352,12 @@
 			function render() {
 				renderer.render( scene, camera );
 			}
-
 			function onPointerDown( event ) {
 
 				onDownPosition.x = event.clientX;
 				onDownPosition.y = event.clientY;
 
 			}
-
 			function onPointerUp() {
 
 				onUpPosition.x = event.clientX;
@@ -337,13 +366,11 @@
 				if ( onDownPosition.distanceTo( onUpPosition ) === 0 ) transformControl.detach();
 
 			}
-
 			function onPointerMove( event ) {
 
 				pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
 				pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 			}
-
 			function onWindowResize() {
 
 				camera.aspect = window.innerWidth / window.innerHeight;
@@ -354,7 +381,6 @@
 				render();
 
 			}
-
 		</script>
 
 	</body>
